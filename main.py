@@ -5,12 +5,12 @@ from stable_baselines import PPO2
 import pandas as pd
 from CustomEnvironment import CustomEnv
 
-df = pd.read_csv('Lima.csv')
+df = pd.read_csv('Sheet12.csv')
 df = pd.DataFrame(df, columns=['City Name', 'Service type', 'Stage', 'Action', 'Day', 'From Time',
                                'To Time', 'Amount', 'Passenger Location', 'Route Metric',
                                'Month, Day, Year of Request Created Local', 'DP', 'Requests',
                                'NA%', 'Non Riders'])
-df = df.sort_values('Passenger Location')
+df = df.sort_values('Month, Day, Year of Request Created Local')
 
 # The algorithms require a vectorized environment to run
 env = DummyVecEnv([lambda: CustomEnv(df)])
