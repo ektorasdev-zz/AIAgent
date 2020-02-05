@@ -4,7 +4,6 @@ import numpy as np
 import random
 
 DP_RANGE = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
-SCALE_AMOUNT = 100000
 
 
 class CustomEnv(gym.Env):
@@ -18,35 +17,28 @@ class CustomEnv(gym.Env):
         # They must be gym.spaces objects
 
         self.df = df
-        self.reward_range = (0, 10000)
-        self.total_steps = len(df) - 1
+        self.total_steps = len(self.df) - 1
         self.current_step = random.randint(0, len(self.df.loc[:, 'NA%'].values) - 6)
 
         # Actions of the format Increase DP x%, Decrease DP x%, Do Nothing, etc.
-        self.action_space = spaces.Box(low=np.array([0, 0]), high=np.array([3, 1]), dtype=np.float16)
+        self.action_space = spaces.Discrete(3)
 
         # Prices contains the OHCL values for the last five prices
-        self.observation_space = spaces.Box(low=0, high=1, shape=(720, ), dtype=np.float16)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(720,), dtype=np.float32)
 
     def _next_observation(self):
         # Get Requests, NA, DP for the last 5 days
         frame = np.array([
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'NA%'].values
-            / SCALE_AMOUNT,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'DP'].values
-            / SCALE_AMOUNT,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'Requests'].values
-            / SCALE_AMOUNT,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'NA%'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'DP'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'Requests'].values,
         ])
 
         # Get current Requests, NA, DP
         obs = np.append(frame, [[
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'NA%'].values
-            / SCALE_AMOUNT,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'DP'].values
-            / SCALE_AMOUNT,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'Requests'].values
-            / SCALE_AMOUNT,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'NA%'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'DP'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'Requests'].values,
         ]])
 
         return obs
@@ -55,29 +47,72 @@ class CustomEnv(gym.Env):
         # Set the current price to a random price within the time step
         self.current_dp = random.uniform(self.df.loc[self.current_step, "DP"], self.df.loc[self.current_step, "DP"])
 
-        action_type = action[0]
-        amount = action[1]
-
-        if action_type < 1:
+        if action == 1:
+            # Increase DP %
+            if self.df.loc[self.current_step, 'NA%'] < 2.0:
+                reward = 0
+            elif self.df.loc[self.current_step, 'NA%'] > 8.0:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp + random.choice(DP_RANGE)
+                reward = 1
+            else:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp
+                reward = 1
+        elif action == 2:
+            # Decrease or Hold DP Percentage
+            if self.df.loc[self.current_step, 'NA%'] < 2.0:
+                if self.current_dp - random.choice(DP_RANGE) <= 0:
+                    self.df.loc[self.current_step, "Amount"] = 0
+                else:
+                    self.df.loc[self.current_step, "Amount"] = self.current_dp - random.choice(DP_RANGE)
+                reward = 1
+            elif self.df.loc[self.current_step, 'NA%'] > 8.0:
+                reward = 0
+            else:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp
+                reward = 1
             # Decrease or Hold DP Percentage
             if self.current_dp - random.choice(DP_RANGE) <= 0:
                 self.df.loc[self.current_step, "Amount"] = 0
             else:
                 self.df.loc[self.current_step, "Amount"] = self.current_dp - random.choice(DP_RANGE)
-
-        elif action_type < 2:
-            # Increase DP %
-            self.df.loc[self.current_step, "Amount"] = self.current_dp + random.choice(DP_RANGE)
+        else:
+            self.df.loc[self.current_step, "Amount"] = 0
 
     def step(self, action):
         # Execute one time step within the environment
-        self._take_action(action)
-        self.current_step += 1
+        # self._take_action(action)
+        assert self.action_space.contains(action)
+        self.current_dp = self.df.loc[self.current_step, "DP"]
 
-        if 2.0 < float(self.df.loc[self.current_step, 'NA%']) < 8.0:
-            reward = 1
+        if action == 1:
+            # Increase DP %
+            if self.df.loc[self.current_step, 'NA%'] < 2.0:
+                reward = -1
+            elif self.df.loc[self.current_step, 'NA%'] > 8.0:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp + random.choice(DP_RANGE)
+                reward = 1
+            else:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp
+                reward = 0
+        elif action == 2:
+            # Decrease DP %
+            if self.df.loc[self.current_step, 'NA%'] < 2.0:
+                if self.current_dp - random.choice(DP_RANGE) <= 0:
+                    self.df.loc[self.current_step, "Amount"] = 0
+                else:
+                    self.df.loc[self.current_step, "Amount"] = self.current_dp - random.choice(DP_RANGE)
+                reward = 1
+            elif self.df.loc[self.current_step, 'NA%'] > 8.0:
+                reward = -1
+            else:
+                self.df.loc[self.current_step, "Amount"] = self.current_dp
+                reward = 0
         else:
+            # Keep DP %
+            self.df.loc[self.current_step, "Amount"] = 0
             reward = 0
+
+        self.current_step += 1
 
         done = self.total_steps <= 0
         obs = self._next_observation()
@@ -87,7 +122,7 @@ class CustomEnv(gym.Env):
     def reset(self):
         # Reset the state of the environment to an initial state
         self.df.loc[self.current_step, "Amount"] = 0
-        self.total_steps = self.df.shape[0]
+        self.total_steps = len(self.df) - 1
 
         # Set the current step to a random point within the data frame
         self.current_step = random.randint(0, len(self.df.loc[:, 'NA%'].values) - 6)
