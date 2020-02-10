@@ -3,6 +3,8 @@ from gym import spaces
 import numpy as np
 import random
 
+from rl.agents.dqn import DQNAgent
+
 DP_RANGE = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
 
 
@@ -11,34 +13,32 @@ class CustomEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self, df):
-        super(CustomEnv, self).__init__()
-
         # Define action and observation space
         # They must be gym.spaces objects
 
         self.df = df
         self.total_steps = len(self.df) - 1
-        self.current_step = random.randint(0, len(self.df.loc[:, 'NA%'].values) - 6)
+        self.current_step = 0
 
         # Actions of the format Increase DP x%, Decrease DP x%, Do Nothing, etc.
         self.action_space = spaces.Discrete(3)
 
         # Prices contains the OHCL values for the last five prices
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(720,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=np.array(-len(df)), high=np.array(len(df)), dtype=np.float32)
 
     def _next_observation(self):
         # Get Requests, NA, DP for the last 5 days
         frame = np.array([
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'NA%'].values,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'DP'].values,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'January 20, 2020', 'Requests'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'November 11, 2019', 'NA%'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'November 11, 2019', 'DP'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] != 'November 11, 2019', 'Requests'].values,
         ])
 
         # Get current Requests, NA, DP
         obs = np.append(frame, [[
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'NA%'].values,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'DP'].values,
-            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'January 20, 2020', 'Requests'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'November 11, 2019', 'NA%'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'November 11, 2019', 'DP'].values,
+            self.df.loc[self.df['Month, Day, Year of Request Created Local'] == 'November 11, 2019', 'Requests'].values,
         ]])
 
         return obs
@@ -125,7 +125,7 @@ class CustomEnv(gym.Env):
         self.total_steps = len(self.df) - 1
 
         # Set the current step to a random point within the data frame
-        self.current_step = random.randint(0, len(self.df.loc[:, 'NA%'].values) - 6)
+        self.current_step = 0
 
         return self._next_observation()
 
