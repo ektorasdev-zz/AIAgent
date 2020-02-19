@@ -3,6 +3,9 @@ from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines import PPO2
 import pandas as pd
 from CustomEnvironment import CustomEnv
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Flatten
+from tensorflow.keras.optimizers import Adam
 
 df = pd.read_csv('Sheet12.csv')
 data = pd.DataFrame(df, columns=['City Name', 'Service type', 'Stage', 'Action', 'Day', 'From Time',
@@ -23,3 +26,11 @@ for i in range(2000):
     env.render()
 
 data.to_csv('New_file.csv', index=False)
+
+
+
+
+
+
+
+
